@@ -10,6 +10,8 @@
 
 G2 is a visualization grammar, a data-driven visual language with a high level of usability and scalability. It provides a set of grammars, takes users beyond a limited set of charts to an almost unlimited world of graphical forms. With G2, users can describe the visual appearance of a visualization just by one statement.
 
+**Special thanks to [Leland Wilkinson](https://en.wikipedia.org/wiki/Leland_Wilkinson), the author of [*The Grammar Of Graphics*](https://www.cs.uic.edu/~wilkinson/TheGrammarOfGraphics/GOG.html), whose book served as the foundation for G2.**
+
 [More details about G2](https://antv.alipay.com/zh-cn/g2/3.x/index.html).
 
 <img src="https://gw.alipayobjects.com/zos/rmsportal/AOwgKIjknXfggPijmhym.gif" width="200"><img src="https://gw.alipayobjects.com/zos/rmsportal/nfiOREzMIsENrzUeLOGR.gif" width="200"><img src="https://gw.alipayobjects.com/zos/rmsportal/uZZmaudtKRnvUhmUdZSZ.gif" width="180"><img src="https://gw.alipayobjects.com/zos/rmsportal/ifSTXzrGbvtLRpnAvAiZ.gif" width="200">
@@ -53,7 +55,7 @@ chart.render();
 
 [More examples](https://antv.alipay.com/zh-cn/g2/3.x/demo/index.html)
 
-<img src="https://user-images.githubusercontent.com/6628666/33157917-b970a70c-d040-11e7-9601-b1da1dbe26ab.png" width="800" style="text-align: center;">
+<img src="https://user-images.githubusercontent.com/6628666/33254261-ccc1f55a-d382-11e7-83ba-808712bd5b92.png" width="400" height="636"><img src="https://user-images.githubusercontent.com/6628666/33254262-cce7c8a2-d382-11e7-9e9b-2eba6093db39.png" width="400" height="636">
 
 ## Development
 
