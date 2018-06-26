@@ -1,6 +1,6 @@
 const expect = require('chai').expect;
-const { Canvas } = require('@antv/g');
-const Scale = require('../../../../src/scale/index');
+const { Canvas } = require('../../../../src/renderer2d');
+const Scale = require('@antv/scale');
 const Labels = require('../../../../src/geom/label/');
 const GeomLabels = require('../../../../src/geom/label/geom-labels');
 const PolarLabels = require('../../../../src/geom/label/polar-labels');
@@ -140,7 +140,6 @@ describe('geom labels', function() {
         geomType: 'interval'
       });
       const cfg = gLabels.get('label');
-      // console.log(gLabels, cfg);
       expect(cfg.offset).to.equal(-10);
       expect(cfg.textStyle.fill).to.equal('#fff');
     });

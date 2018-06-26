@@ -5,13 +5,13 @@
 
 const Util = require('../util');
 const View = require('./view');
-const G = require('@antv/g');
+const G = require('../renderer2d');
 const Canvas = G.Canvas;
-const DomUtil = G.DomUtil;
-const Component = require('../component/index');
+const DomUtil = Util.DomUtil;
+const Plot = require('../component/plot');
 const Controller = require('./controller/index');
-const Facets = require('../facet/index');
 const Global = require('../global');
+const AUTO_STR = 'auto';
 
 function _isScaleExist(scales, compareScale) {
   let flag = false;
@@ -25,6 +25,19 @@ function _isScaleExist(scales, compareScale) {
   });
 
   return flag;
+}
+
+function mergeBBox(box1, box2) {
+  return {
+    minX: Math.min(box1.minX, box2.minX),
+    minY: Math.min(box1.minY, box2.minY),
+    maxX: Math.max(box1.maxX, box2.maxX),
+    maxY: Math.max(box1.maxY, box2.maxY)
+  };
+}
+
+function isEqualArray(arr1, arr2) {
+  return Util.isEqualWith(arr1, arr2, (v1, v2) => v1 === v2);
 }
 
 /**
@@ -53,6 +66,7 @@ class Chart extends View {
       frontPlot: null,
       plotBackground: null,
       background: null,
+      autoPaddingAppend: 5,
       views: []
     });
   }
@@ -76,6 +90,42 @@ class Chart extends View {
     this.set('_id', 'chart'); // 防止同用户设定的 id 同名
     this.emit('afterinit'); // 初始化完毕
   }
+
+  _isAutoPadding() {
+    const padding = this.get('padding');
+    if (Util.isArray(padding)) {
+      return padding.indexOf(AUTO_STR) !== -1;
+    }
+    return padding === AUTO_STR;
+  }
+
+  _getAutoPadding() {
+    const padding = this.get('padding');
+    // 图例在最前面的一层
+    const frontPlot = this.get('frontPlot');
+    const frontBBox = frontPlot.getBBox();
+    // 坐标轴在最后面的一层
+    const backPlot = this.get('backPlot');
+    const backBBox = backPlot.getBBox();
+
+    const box = mergeBBox(frontBBox, backBBox);
+    const outter = [
+      0 - box.minY, // 上面超出的部分
+      box.maxX - this.get('width'), // 右边超出的部分
+      box.maxY - this.get('height'), // 下边超出的部分
+      0 - box.minX
+    ];
+    // 如果原始的 padding 内部存在 'auto' 则替换对应的边
+    const autoPadding = Util.toAllPadding(padding);
+    for (let i = 0; i < autoPadding.length; i++) {
+      if (autoPadding[i] === AUTO_STR) {
+        const tmp = Math.max(0, outter[i]);
+        autoPadding[i] = tmp + this.get('autoPaddingAppend');
+      }
+    }
+    return autoPadding;
+  }
+
   // 初始化画布
   _initCanvas() {
     let container = this.get('container');
@@ -98,7 +148,7 @@ class Chart extends View {
     container.appendChild(wrapperEl);
     this.set('wrapperEl', wrapperEl);
     if (this.get('forceFit')) {
-      width = DomUtil.getWidth(container);
+      width = DomUtil.getWidth(container, width);
       this.set('width', width);
     }
     const canvas = new Canvas({
@@ -132,7 +182,7 @@ class Chart extends View {
   // 初始化背景
   _initPlotBack() {
     const canvas = this.get('canvas');
-    const plot = canvas.addGroup(Component.Plot, {
+    const plot = canvas.addGroup(Plot, {
       padding: this.get('padding'),
       plotBackground: Util.mix({}, Global.plotBackground, this.get('plotBackground')),
       background: Util.mix({}, Global.background, this.get('background'))
@@ -173,13 +223,20 @@ class Chart extends View {
           Util.each(attrs, attr => {
             const type = attr.type;
             const scale = attr.getScale(type);
-            if (scale.type !== 'identity' && !_isScaleExist(scales, scale)) {
+            if (scale.field && scale.type !== 'identity' && !_isScaleExist(scales, scale)) {
               scales.push(scale);
               const filteredValues = view.getFilteredValues(scale.field);
               legendController.addLegend(scale, attr, geom, filteredValues);
             }
           });
         });
+
+        // 双轴的情况
+        const yScales = this.getYScales();
+        if (scales.length === 0 && yScales.length > 1) {
+          legendController.addMixedLegend(yScales, geoms);
+        }
+
       }
 
       legendController.alignLegends();
@@ -219,13 +276,27 @@ class Chart extends View {
    */
   forceFit() {
     const self = this;
+    if (!self || self.destroyed) {
+      return;
+    }
     const container = self.get('container');
-    const width = DomUtil.getWidth(container);
-    if (width !== this.get('width')) {
-      const height = this.get('height');
-      this.changeSize(width, height);
+    const oldWidth = self.get('width');
+    const width = DomUtil.getWidth(container, oldWidth);
+    if (width !== 0 && width !== oldWidth) {
+      const height = self.get('height');
+      self.changeSize(width, height);
     }
     return self;
+  }
+
+  resetPlot() {
+    const plot = this.get('plot');
+    const padding = this.get('padding');
+    if (!isEqualArray(padding, plot.get('padding'))) {
+      // 重置 padding，仅当padding 发生更改
+      plot.set('padding', padding);
+      plot.repaint();
+    }
   }
 
   /**
@@ -238,13 +309,15 @@ class Chart extends View {
     const self = this;
     const canvas = self.get('canvas');
     canvas.changeSize(width, height);
-
+    const plot = this.get('plot');
     self.set('width', width);
     self.set('height', height);
-    const plot = self.get('plot');
+    // change size 时重新计算边框
     plot.repaint();
-
+    // 保持边框不变，防止自动 padding 时绘制多遍
+    this.set('keepPadding', true);
     self.repaint();
+    this.set('keepPadding', false);
     this.emit('afterchangesize');
     return self;
   }
@@ -263,20 +336,6 @@ class Chart extends View {
    */
   changeHeight(height) {
     return this.changeSize(this.get('width'), height);
-  }
-
-  facet(type, cfg) {
-    const cls = Facets[Util.upperFirst(type)];
-    if (!cls) {
-      throw new Error('Not support such type of facets as: ' + type);
-    }
-    const preFacets = this.get('facets');
-    if (preFacets) {
-      preFacets.destroy();
-    }
-    cfg.chart = this;
-    const facets = new cls(cfg);
-    this.set('facets', facets);
   }
 
   /**
@@ -301,6 +360,10 @@ class Chart extends View {
     this.emit('addview', { view });
     return view;
   }
+
+  // isShapeInView() {
+  //   return true;
+  // }
 
   removeView(view) {
     const views = this.get('views');
@@ -392,6 +455,7 @@ class Chart extends View {
     }
     super.clear();
     const canvas = this.get('canvas');
+    this.resetPlot();
     canvas.draw();
     this.emit('afterclear');
     return this;
@@ -414,15 +478,43 @@ class Chart extends View {
     super.clearInner();
   }
 
+  // chart 除了view 上绘制的组件外，还会绘制图例和 tooltip
+  drawComponents() {
+    super.drawComponents();
+    // 一般是点击图例时，仅仅隐藏某些选项，而不销毁图例
+    if (!this.get('keepLegend')) {
+      this._renderLegends(); // 渲染图例
+    }
+  }
+
   /**
    * 绘制图表
    * @override
    */
-  paint() {
-    super.paint();
-    !this.get('keepLegend') && this._renderLegends(); // 渲染图例
+  render() {
+    // 需要自动计算边框，则重新设置
+    if (!this.get('keepPadding') && this._isAutoPadding()) {
+      this.beforeRender(); // 初始化各个 view 和 绘制
+      this.drawComponents();
+      const autoPadding = this._getAutoPadding();
+      const plot = this.get('plot');
+      // 在计算出来的边框不一致的情况，重新改变边框
+      if (!isEqualArray(plot.get('padding'), autoPadding)) {
+        plot.set('padding', autoPadding);
+        plot.repaint();
+      }
+    }
+    super.render();
     this._renderTooltips(); // 渲染 tooltip
-    this.set('keepLegend', false);
+  }
+
+  repaint() {
+    // 重绘时需要判定当前的 padding 是否发生过改变，如果发生过改变进行调整
+    // 需要判定是否使用了自动 padding
+    if (!this.get('keepPadding')) {
+      this.resetPlot();
+    }
+    super.repaint();
   }
 
   /**
@@ -454,9 +546,34 @@ class Chart extends View {
   downloadImage(name) {
     const dataURL = this.toDataURL();
     const link = document.createElement('a');
-    link.download = (name || 'chart') + '.png';
-    link.href = dataURL.replace('image/png', 'image/octet-stream');
-    link.click();
+
+    if (window.Blob && window.URL) {
+      const arr = dataURL.split(',');
+      const mime = arr[0].match(/:(.*?);/)[1];
+      const bstr = atob(arr[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      const blobObj = new Blob([ u8arr ], { type: mime });
+      if (window.navigator.msSaveBlob) {
+        window.navigator.msSaveBlob(blobObj, (name || 'chart') + '.png');
+      } else {
+        link.addEventListener('click', function() {
+          link.download = (name || 'chart') + '.png';
+          link.href = window.URL.createObjectURL(blobObj);
+        });
+      }
+    } else {
+      link.addEventListener('click', function() {
+        link.download = (name || 'chart') + '.png';
+        link.href = dataURL.replace('image/png', 'image/octet-stream');
+      });
+    }
+    const e = document.createEvent('MouseEvents');
+    e.initEvent('click', false, false);
+    link.dispatchEvent(e);
     return dataURL;
   }
 
@@ -517,6 +634,7 @@ class Chart extends View {
    */
   destroy() {
     this.emit('beforedestroy');
+    clearTimeout(this.get('resizeTimer'));
     const canvas = this.get('canvas');
     const wrapperEl = this.get('wrapperEl');
     wrapperEl.parentNode.removeChild(wrapperEl);

@@ -1,6 +1,6 @@
 const expect = require('chai').expect;
-const { Canvas } = require('@antv/g');
-const Scale = require('../../../../src/scale/index');
+const { Canvas } = require('../../../../src/renderer2d');
+const Scale = require('@antv/scale');
 const Coord = require('../../../../src/coord/index');
 const GuideController = require('../../../../src/chart/controller/guide');
 
@@ -244,8 +244,8 @@ describe('GuideController', function() {
     const dom = div.getElementsByClassName('g-guide');
     expect(dom).not.to.be.empty;
     expect(dom.length).to.equal(1);
-    expect(frontContainer.get('children').length).to.equal(1);
-    expect(backContainer.get('children').length).to.equal(8);
+    expect(frontContainer.get('children').length).to.equal(4); // 文本默认在最上面
+    expect(backContainer.get('children').length).to.equal(5);
   });
 
   it('clear', function() {

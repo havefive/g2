@@ -3,77 +3,39 @@
  * @author dxq613@gmail.com
  * @see https://github.com/lodash/lodash
  */
+const G = require('@antv/g');
+const CommonUtil = G.CommonUtil;
+const Utils = require('@antv/util');
 
-const MAX_LEVEL = 5;
-
-function _mix(dist, obj) {
-  for (const k in obj) {
-    if (obj.hasOwnProperty(k) && k !== 'constructor' && obj[k] !== undefined) {
-      dist[k] = obj[k];
-    }
-  }
-}
-
-const Util = {
-  each: require('lodash/each'),
-  map: require('lodash/map'),
-  isObject: require('lodash/isObject'),
-  isNumber: require('lodash/isNumber'),
-  isString: require('lodash/isString'),
-  isFunction: require('lodash/isFunction'),
-  isFinite: require('lodash/isFinite'),
-  isBoolean: require('lodash/isBoolean'),
-  isEmpty: require('lodash/isEmpty'),
-  lowerFirst: require('lodash/lowerFirst'),
-  upperFirst: require('lodash/upperFirst'),
-  upperCase: require('lodash/upperCase'),
-  isNil: require('lodash/isNil'),
-  isNull: require('lodash/isNull'),
-  isArray: require('lodash/isArray'),
-  isDate: require('lodash/isDate'),
-  isPlainObject: require('lodash/isPlainObject'),
-  toArray: require('lodash/toArray'),
-  indexOf: require('lodash/indexOf'),
-  assign: require('lodash/assign'),
-  groupBy: require('lodash/groupBy'),
-  cloneDeep: require('lodash/cloneDeep'),
-  maxBy: require('lodash/maxBy'),
-  minBy: require('lodash/minBy'),
-  round: require('lodash/round'),
-  filter: require('lodash/filter'),
-  isEqualWith: require('lodash/isEqualWith'),
-  isEqual: require('lodash/isEqual'),
-  replace: require('lodash/replace'),
-  union: require('lodash/union'),
-  pick: require('lodash/pick'),
+const Util = CommonUtil.assign({
+  cloneDeep: Utils.clone,
+  MatrixUtil: G.MatrixUtil,
+  DomUtil: G.DomUtil,
+  PathUtil: G.PathUtil,
+  filter: Utils.filter,
+  flatten: Utils.flatten,
+  groupBy: Utils.groupBy,
+  indexOf: Utils.indexOf,
+  isDate: Utils.isDate,
+  isEmpty: Utils.isEmpty,
+  isEqualWith: Utils.isEqualWith,
+  isFinite,
+  isNaN,
+  isNull: Utils.isNull,
+  isPlainObject: Utils.isPlainObject,
+  lowerFirst: Utils.lowerFirst,
+  map: Utils.map,
+  mix: Utils.mix,
+  deepMix: Utils.deepMix,
+  maxBy: Utils.maxBy,
+  minBy: Utils.minBy,
+  pick: Utils.pick,
+  reduce: Utils.reduce,
+  union: Utils.union,
+  uniq: Utils.uniq,
+  upperCase: Utils.upperCase,
   snapEqual(v1, v2) {
     return Math.abs(v1 - v2) < 0.001;
-  },
-  fixedBase(v, base) {
-    const str = base.toString();
-    const index = str.indexOf('.');
-    if (index === -1) {
-      return Math.round(v);
-    }
-    let length = str.substr(index + 1).length;
-    if (length > 20) {
-      length = 20;
-    }
-    return parseFloat(v.toFixed(length));
-  },
-  mix(dist, obj1, obj2, obj3) {
-    if (obj1) {
-      _mix(dist, obj1);
-    }
-
-    if (obj2) {
-      _mix(dist, obj2);
-    }
-
-    if (obj3) {
-      _mix(dist, obj3);
-    }
-    return dist;
   },
   inArray(arr, value) {
     return arr.indexOf(value) >= 0;
@@ -148,44 +110,11 @@ const Util = {
       return (o[name] === undefined) ? '' : o[name];
     });
   }
-};
-
-function deepMix(dst, src, level) {
-  level = level || 0;
-  for (const k in src) {
-    if (src.hasOwnProperty(k)) {
-      const value = src[k];
-      if (value !== null && Util.isPlainObject(value)) {
-        if (!Util.isPlainObject(dst[k])) {
-          dst[k] = {};
-        }
-        if (level < MAX_LEVEL) {
-          deepMix(dst[k], src[k], level + 1);
-        } else {
-          dst[k] = src[k];
-        }
-      } else if (Util.isArray(value)) {
-        dst[k] = [];
-        dst[k] = dst[k].concat(value);
-      } else if (value !== undefined) {
-        dst[k] = src[k];
-      }
-    }
-  }
-}
-
-
-Util.deepMix = function() {
-  const args = Util.toArray(arguments);
-  const rst = args[0];
-  for (let i = 1; i < args.length; i++) {
-    const source = args[i];
-    deepMix(rst, source);
-  }
-  return rst;
-};
+}, CommonUtil);
 
 Util.Array = {
+  groupToMap: Utils.groupToMap,
+  group: Utils.group,
   merge(dataArray) {
     let rst = [];
     for (let i = 0; i < dataArray.length; i++) {
@@ -214,6 +143,10 @@ Util.Array = {
     return rst;
   },
   getRange(values) {
+    // 存在 NaN 时，min,max 判定会出问题
+    values = Util.filter(values, function(v) {
+      return !isNaN(v);
+    });
     if (!values.length) { // 如果没有数值则直接返回0
       return {
         min: 0,
@@ -250,42 +183,7 @@ Util.Array = {
     }
     return rst;
   },
-  group(data, condition) {
-    if (!condition) {
-      return [ data ];
-    }
-    const groups = Util.Array.groupToMap(data, condition);
-    const array = [];
-    for (const i in groups) {
-      array.push(groups[i]);
-    }
-    return array;
-  },
-  groupToMap(data, condition) {
-    if (!condition) {
-      return {
-        0: data
-      };
-    }
-    if (!Util.isFunction(condition)) {
-      const paramsCondition = Util.isArray(condition) ? condition : condition.replace(/\s+/g, '').split('*');
-      condition = function(row) {
-        let unique = '_'; // 避免出现数字作为Key的情况，会进行按照数字的排序
-        for (let i = 0, l = paramsCondition.length; i < l; i++) {
-          unique += row[paramsCondition[i]] && row[paramsCondition[i]].toString();
-        }
-        return unique;
-      };
-    }
-    const groups = Util.groupBy(data, condition);
-    return groups;
-  },
-  remove(arr, obj) {
-    const index = Util.indexOf(arr, obj);
-    if (index !== -1) {
-      arr.splice(index, 1);
-    }
-  }
+  remove: CommonUtil.remove
 };
 
 module.exports = Util;

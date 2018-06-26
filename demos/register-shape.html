@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>RegisterShape problem</title>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="./assets/common.css">
+  <title>RegisterShape problem</title>
 </head>
 <body>
 <div id="canvas"></div>
@@ -10,7 +11,7 @@
 <script src="../build/g2.js"></script>
 <script>
   const {
-      Shape
+    Shape
   } = G2;
   const data = [
     { type: 'AE', sold: 179, money: 248 },
@@ -39,7 +40,6 @@
 //      },
 
       draw(cfg, group) { // 自定义最终绘制
-        console.log(cfg);
         const points = this.parsePoints(cfg.points); // 将0-1空间的坐标转换为画布坐标
         points.forEach(obj => { // 关键：就是把 bar 错位一下
           obj.y += item.offsetY ? item.offsetY : 0;

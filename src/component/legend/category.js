@@ -4,9 +4,9 @@
  */
 const Util = require('../../util');
 const Base = require('./base');
-const { DomUtil, Event, Group } = require('@antv/g');
+const DomUtil = Util.DomUtil;
+const { Event, Group } = require('../../renderer2d');
 const Global = require('../../global');
-const LEGEND_STYLE = Global.legend.html;
 
 const CONTAINER_CLASS = 'g2-legend';
 const TITLE_CLASS = 'g2-legend-title';
@@ -206,7 +206,7 @@ class Category extends Base {
       super._renderUI();
       this._renderItems();
       this.get('autoWrap') && this._adjustItems(); // 默认自动换行
-      this._renderBack();
+      // this._renderBack();
     } else { // 使用 html 渲染图例
       this._renderHTML();
     }
@@ -264,6 +264,7 @@ class Category extends Base {
       const itemclick = new Event('itemclick', ev, true, true);
       itemclick.item = item;
       itemclick.currentTarget = clickedItem;
+      itemclick.appendInfo = ev.currentTarget.get('appendInfo');
       itemclick.checked = (mode === 'single') ? true : !checked;
 
       const unCheckColor = this.get('unCheckColor');
@@ -337,6 +338,32 @@ class Category extends Base {
     const itemListDom = findNodeByClass(legendWrapper, LIST_CLASS);
     const unCheckedColor = self.get('unCheckColor');
     const mode = self.get('selectedMode');
+    const LEGEND_STYLE = Global.legend.html;
+
+    // fix：IE 9 兼容问题，先加入 legendWrapper
+    let container = self.get('container');
+    if (/^\#/.test(container)) { // 如果传入 dom 节点的 id
+      const id = container.replace('#', '');
+      container = document.getElementById(id);
+      // container.style.position = 'relative';
+      container.appendChild(legendWrapper);
+    } else {
+      const position = self.get('position');
+      const canvas = self.get('canvas');
+      let rangeStyle = {};
+      if (position === 'left' || position === 'right') {
+        rangeStyle = {
+          maxHeight: (self.get('maxLength') || canvas.get('height')) + 'px'
+        };
+      } else {
+        rangeStyle = {
+          maxWidth: (self.get('maxLength') || canvas.get('width')) + 'px'
+        };
+      }
+
+      DomUtil.modifyCSS(legendWrapper, Util.mix({}, LEGEND_STYLE[CONTAINER_CLASS], rangeStyle, self.get(CONTAINER_CLASS)));
+      outterNode.appendChild(legendWrapper);
+    }
 
     DomUtil.modifyCSS(itemListDom, Util.mix({}, LEGEND_STYLE[LIST_CLASS], self.get(LIST_CLASS)));
 
@@ -417,19 +444,18 @@ class Category extends Base {
         if (!clickedItem) {
           return;
         }
-        // update checked status
-        clickedItem.checked = (mode === 'single') ? true : !(clickedItem.checked);
         const domClass = parentDom.className;
         const originColor = parentDom.getAttribute('data-color');
         if (mode === 'single') { // 单选模式
+          // update checked status
+          clickedItem.checked = true;
           // 其他图例项全部置灰
           Util.each(childNodes, child => {
             if (child !== parentDom) {
               const childMarkerDom = findNodeByClass(child, MARKER_CLASS);
               childMarkerDom.style.backgroundColor = unCheckedColor;
-              child.className = Util.replace(child.className, 'checked', 'unChecked');
+              child.className = child.className.replace('checked', 'unChecked');
               child.style.color = unCheckedColor;
-
               const childItem = findItem(items, child.getAttribute('data-value'));
               childItem.checked = false;
             } else {
@@ -439,7 +465,7 @@ class Category extends Base {
               if (markerDom) {
                 markerDom.style.backgroundColor = originColor;
               }
-              parentDom.className = Util.replace(domClass, 'unChecked', 'checked');
+              parentDom.className = domClass.replace('unChecked', 'checked');
             }
           });
         } else { // 混合模式
@@ -453,17 +479,19 @@ class Category extends Base {
           if (!this.get('allowAllCanceled') && clickedItemChecked && count === 1) {
             return;
           }
+          // 在判断最后一个图例后再更新checked状态，防止点击最后一个图例item时图例样式没有变化但是checked状态改变了 fix #422
+          clickedItem.checked = !clickedItem.checked;
           if (clickedItemChecked) {
             if (markerDom) {
               markerDom.style.backgroundColor = unCheckedColor;
             }
-            parentDom.className = Util.replace(domClass, 'checked', 'unChecked');
+            parentDom.className = domClass.replace('checked', 'unChecked');
             parentDom.style.color = unCheckedColor;
           } else {
             if (markerDom) {
               markerDom.style.backgroundColor = originColor;
             }
-            parentDom.className = Util.replace(domClass, 'unChecked', 'checked');
+            parentDom.className = domClass.replace('unChecked', 'checked');
             parentDom.style.color = self.get('textStyle').fill;
           }
         }
@@ -502,29 +530,6 @@ class Category extends Base {
       };
     }
 
-    let container = self.get('container');
-    if (/^\#/.test(container)) { // 如果传入 dom 节点的 id
-      const id = container.replace('#', '');
-      container = document.getElementById(id);
-      // container.style.position = 'relative';
-      container.appendChild(legendWrapper);
-    } else {
-      const position = self.get('position');
-      const canvas = self.get('canvas');
-      let rangeStyle = {};
-      if (position === 'left' || position === 'right') {
-        rangeStyle = {
-          maxHeight: (self.get('maxLength') || canvas.get('height')) + 'px'
-        };
-      } else {
-        rangeStyle = {
-          maxWidth: (self.get('maxLength') || canvas.get('width')) + 'px'
-        };
-      }
-
-      DomUtil.modifyCSS(legendWrapper, Util.mix({}, LEGEND_STYLE[CONTAINER_CLASS], rangeStyle, self.get(CONTAINER_CLASS)));
-      outterNode.appendChild(legendWrapper);
-    }
     self.set('legendWrapper', legendWrapper);
   }
 
@@ -600,6 +605,7 @@ class Category extends Base {
       value: item.value,
       checked: item.checked
     });
+    itemGroup.set('viewId', itemsGroup.get('viewId'));
 
     const textStyle = this.get('textStyle');
     const wordSpace = this.get('_wordSpaceing');

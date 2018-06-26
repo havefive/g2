@@ -4,7 +4,7 @@
  */
 const Util = require('../util');
 const Animate = require('./animate');
-const { MatrixUtil } = require('@antv/g');
+const MatrixUtil = Util.MatrixUtil;
 const { mat3 } = MatrixUtil;
 
 // 获取图组内所有的shapes
@@ -96,7 +96,7 @@ function addAnimate(cache, shapes, canvas, isUpdate) {
         });
         tempShape._id = _id;
         tempShape.name = name;
-        if (coord) {
+        if (coord && name !== 'label') {
           const tempShapeMatrix = tempShape.getMatrix();
           const finalMatrix = mat3.multiply([], tempShapeMatrix, coord.matrix);
           tempShape.setMatrix(finalMatrix);
@@ -161,6 +161,9 @@ module.exports = {
     const viewId = view.get('_id');
     const canvas = view.get('canvas');
     const caches = canvas.get(viewId + 'caches') || [];
+    if (caches.length === 0) {
+      isUpdate = false;
+    }
     const shapes = getShapes(viewContainer, viewId);
     const axisShapes = getShapes(axisContainer, viewId);
     const cacheShapes = shapes.concat(axisShapes);

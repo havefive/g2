@@ -1,5 +1,5 @@
 const expect = require('chai').expect;
-const { Canvas } = require('@antv/g');
+const { Canvas } = require('../../../../src/renderer2d');
 const Schema = require('../../../../src/geom/shape/schema');
 const Coord = require('../../../../src/coord/');
 
@@ -94,13 +94,14 @@ describe('schema shapes', function() {
       expect(marker.stroke).equal('red');
     });
 
-    xit('getActiveCfg', function() {
-      const activeCfg = Schema.getActiveCfg();
+    // xit('getActiveCfg', function() {
+    //   const activeCfg = Schema.getActiveCfg();
+    //
+    //   expect(activeCfg).eql({
+    //     lineWidth: 2
+    //   });
+    // });
 
-      expect(activeCfg).eql({
-        lineWidth: 2
-      });
-    });
   });
   describe('candle', function() {
     it('getShapePoints && drawShape', function() {

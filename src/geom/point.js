@@ -2,9 +2,9 @@
  * @fileOverview 点图
  * @author dxq613@gmail.com
  */
-
 const GeomBase = require('./base');
 const Util = require('../util');
+require('./shape/point');
 
 class Point extends GeomBase {
   /**
@@ -32,21 +32,12 @@ class Point extends GeomBase {
         cfg.yIndex = idx;
         if (!hasAdjust || idx !== 0) {
           geomShape = shapeFactory.drawShape(shape, cfg, container);
-          geomShape.setSilent('index', index + idx);
-          geomShape.setSilent('coord', self.get('coord'));
-          if (self.get('animate') && self.get('animateCfg')) {
-            geomShape.setSilent('animateCfg', self.get('animateCfg'));
-          }
+          self.appendShapeInfo(geomShape, index + idx);
         }
       });
     } else if (!Util.isNil(obj.y)) {
       geomShape = shapeFactory.drawShape(shape, cfg, container);
-      geomShape.setSilent('index', index);
-      geomShape.setSilent('coord', self.get('coord'));
-
-      if (self.get('animate') && self.get('animateCfg')) {
-        geomShape.setSilent('animateCfg', self.get('animateCfg'));
-      }
+      self.appendShapeInfo(geomShape, index);
     }
   }
 }
@@ -60,6 +51,20 @@ class PointJitter extends Point {
   }
 }
 
+class PointStack extends Point {
+  getDefaultCfg() {
+    const cfg = super.getDefaultCfg();
+    cfg.hasDefaultAdjust = true;
+    cfg.adjusts = [{ type: 'stack' }];
+    return cfg;
+  }
+}
+
 Point.Jitter = PointJitter;
+Point.Stack = PointStack;
+
+GeomBase.Point = Point;
+GeomBase.PointJitter = PointJitter;
+GeomBase.PointStack = PointStack;
 
 module.exports = Point;

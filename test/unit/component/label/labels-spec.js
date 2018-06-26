@@ -1,7 +1,8 @@
 const expect = require('chai').expect;
-const G = require('@antv/g');
-const Canvas = G.Canvas;
+const G = require('../../../../src/renderer2d');
 const Labels = require('../../../../src/component/label/index');
+
+const Canvas = G.Canvas;
 
 const div = document.createElement('div');
 div.id = 'c1';
@@ -33,7 +34,6 @@ describe('Labels', function() {
       { x: 10, y: 100, text: '5', fontFamily: 'Arial', fontSize: 30, fill: 'red' }
     ],
     textStyle(value) {
-      console.log(value);
       const style = {
         fill: '#f80',
         textAlign: 'center', // 文本对齐方向，可取值为： start middle end
@@ -64,7 +64,6 @@ describe('Labels', function() {
 
   it('labels rotate', function() {
     const item = labels.getLast();
-    console.log();
     expect(item.attr('rotate')).to.be.undefined;
   });
 

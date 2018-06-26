@@ -4,7 +4,8 @@
  */
 
 const Util = require('../util');
-const RGB_REG = /rgb\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/;
+// const RGB_REG = /rgb\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/;
+const RGB_REG = /rgba?\(([\s.,0-9]+)\)/;
 
 // 创建辅助 tag 取颜色
 function createTmp() {
@@ -37,6 +38,9 @@ function toHex(value) {
 }
 
 function calColor(colors, percent) {
+  if (Util.isNaN(percent) || !Util.isNumber(percent)) {
+    percent = 0;
+  }
   const steps = colors.length - 1;
   const step = Math.floor(steps * percent);
   const left = steps * percent - step;
@@ -81,8 +85,8 @@ const ColorUtil = {
     } else {
       iEl.style.color = color;
       rst = document.defaultView.getComputedStyle(iEl, '').getPropertyValue('color');
-      const cArray = RGB_REG.exec(rst);
-      cArray.shift();
+      const matchs = RGB_REG.exec(rst);
+      const cArray = matchs[1].split(/\s*,\s*/);
       rst = arr2rgb(cArray);
       colorCache[color] = rst;
     }

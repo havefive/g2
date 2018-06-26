@@ -4,17 +4,32 @@
  */
 const Util = require('../../util');
 const Global = require('../../global');
-const { Tooltip } = require('../../component/index');
-const MatrixUtil = require('@antv/g').MatrixUtil;
+const Tooltip = require('../../component/tooltip');
+const MatrixUtil = Util.MatrixUtil;
 const Vector2 = MatrixUtil.vec2;
 
 const TYPE_SHOW_MARKERS = [ 'line', 'area', 'path', 'areaStack' ]; // 默认展示 tooltip marker 的几何图形
 const TYPE_SHOW_CROSSHAIRS = [ 'line', 'area' ]; // 默认展示十字瞄准线的几何图形
 
+// TODO FIXME this is HARD CODING
+const IGNORE_TOOLTIP_ITEM_PROPERTIES = [
+  'marker',
+  'showMarker'
+];
+
 function _indexOfArray(items, item) {
   let rst = -1;
   Util.each(items, function(sub, index) {
-    if (sub.title === item.title && sub.name === item.name && sub.value === item.value && sub.color === item.color) {
+    let isEqual = true;
+    for (const key in item) {
+      if (item.hasOwnProperty(key) && IGNORE_TOOLTIP_ITEM_PROPERTIES.indexOf(key) === -1) {
+        if (!Util.isObject(item[key]) && item[key] !== sub[key]) {
+          isEqual = false;
+          break;
+        }
+      }
+    }
+    if (isEqual) {
       rst = index;
       return false;
     }
@@ -143,7 +158,7 @@ class TooltipController {
     }
 
     return Util.mix(defaultCfg, crosshairsCfg, {
-      isTransposed: geoms[0].get('coord').isTransposed
+      isTransposed: geoms.length && geoms[0].get('coord') ? geoms[0].get('coord').isTransposed : false
     });
   }
 
@@ -165,7 +180,7 @@ class TooltipController {
     }
   }
 
-  _setTooltip(title, point, items, markersItems, target) {
+  _setTooltip(point, items, markersItems, target) {
     const self = this;
     const tooltip = self.tooltip;
     const prePoint = self.prePoint;
@@ -183,23 +198,28 @@ class TooltipController {
           tooltip
         });
       }
-      chart.emit('tooltip:change', {
-        tooltip,
-        x,
-        y,
-        items
-      });
-      tooltip.setContent(title, items);
-      if (!Util.isEmpty(markersItems)) {
-        if (self.options.hideMarkers === true) { // 不展示 tooltip marker
-          tooltip.set('markerItems', markersItems); // 用于 tooltip 辅助线的定位
+      const first = items[0];
+      let title = first.title || first.name;
+      if (tooltip.isContentChange(title, items)) {
+        chart.emit('tooltip:change', {
+          tooltip,
+          x,
+          y,
+          items
+        });
+        // bugfix: when set the title in the tooltip:change event does not take effect.
+        title = items[0].title || items[0].name;
+        tooltip.setContent(title, items);
+        if (!Util.isEmpty(markersItems)) {
+          if (self.options.hideMarkers === true) { // 不展示 tooltip marker
+            tooltip.set('markerItems', markersItems); // 用于 tooltip 辅助线的定位
+          } else {
+            tooltip.setMarkers(markersItems, Global.tooltipMarker);
+          }
         } else {
-          tooltip.setMarkers(markersItems, Global.tooltipMarker);
+          tooltip.clearMarkers();
         }
-      } else {
-        tooltip.clearMarkers();
       }
-
       tooltip.setPosition(x, y, target);
       tooltip.show();
     }
@@ -229,12 +249,7 @@ class TooltipController {
       y: ev.y
     };
     if ((timeStamp - lastTimeStamp) > 16) {
-      let target;
-      if (ev.shape
-        && Util.inArray([ 'point', 'interval', 'polygon', 'schema' ], ev.shape.name)) {
-        target = ev.shape;
-      }
-      this.showTooltip(point, ev.views, target);
+      this.showTooltip(point, ev.views, ev.shape);
       this.timeStamp = timeStamp;
     }
   }
@@ -307,7 +322,6 @@ class TooltipController {
     const options = self.options;
     let markersItems = [];
     let items = [];
-
     Util.each(views, view => {
       if (!view.get('tooltipEnable')) { // 如果不显示tooltip，则跳过
         return true;
@@ -342,11 +356,12 @@ class TooltipController {
             });
           } else {
             const geomContainer = geom.get('shapeContainer');
-            const canvas = geomContainer.get('canvas');
-            const pixelRatio = canvas.get('pixelRatio');
-            const shape = geomContainer.getShape(point.x * pixelRatio, point.y * pixelRatio);
-            if (shape && shape.get('visible') && shape.get('origin')) {
-              items = geom.getTipItems(shape.get('origin'), options.title);
+            if (target &&
+              target.get('visible') &&
+              target.get('origin') &&
+              target.get('parent') === geomContainer
+            ) {
+              items = geom.getTipItems(target.get('origin'), options.title);
             }
           }
         }
@@ -398,9 +413,7 @@ class TooltipController {
       // if (!Util.isEmpty(markersItems)) {
       //   point = markersItems[0];
       // }
-      const title = first.title || first.name;
-
-      self._setTooltip(title, point, items, markersItems, target);
+      self._setTooltip(point, items, markersItems, target);
     } else {
       self.hideTooltip();
     }
@@ -416,4 +429,3 @@ class TooltipController {
 }
 
 module.exports = TooltipController;
-

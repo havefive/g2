@@ -3,7 +3,8 @@
  * @author sima.zhang
  */
 const Util = require('../../util');
-const { Group, DomUtil } = require('@antv/g');
+const DomUtil = Util.DomUtil;
+const { Group } = require('../../renderer2d');
 
 class Slider extends Group {
   getDefaultCfg() {
@@ -87,7 +88,7 @@ class Slider extends Group {
     middleHandleElement.set('zIndex', 1);
     minHandleElement.set('zIndex', 2);
     maxHandleElement.set('zIndex', 2);
-    middleHandleElement.attr('cursor', 'move');
+    middleHandleElement.attr('cursor', trigerCursor);
     minHandleElement.attr('cursor', trigerCursor);
     maxHandleElement.attr('cursor', trigerCursor);
     this.sort();

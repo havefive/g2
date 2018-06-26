@@ -14,8 +14,6 @@ class Text extends Base {
        * @type {String}
        */
       type: 'text',
-      // TODO 需要调整
-      zIndex: 15,
       /**
        * 辅助文本的位置
        * @type {Object | Function | Array}
@@ -45,7 +43,8 @@ class Text extends Base {
        * y 方向的偏移量
        * @type {Number}
        */
-      offsetY: null
+      offsetY: null,
+      top: true
     });
   }
 
@@ -54,7 +53,6 @@ class Text extends Base {
     const position = self.position;
     const point = self.parsePoint(coord, position);
     const textStyle = Util.mix({}, this.style);
-
     if (self.offsetX) {
       point.x += self.offsetX;
     }

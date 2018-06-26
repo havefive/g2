@@ -2,7 +2,7 @@
  * @fileOverview the grid of axis
  * @author sima.zhang
  */
-const { Group } = require('@antv/g');
+const { Group } = require('../../renderer2d');
 const Util = require('../../util');
 
 class Grid extends Group {
@@ -41,7 +41,17 @@ class Grid extends Group {
        * 是否隐藏最后一条网格线，默认为 false
        * @type {Boolean}
        */
-      hideLastLine: false
+      hideLastLine: false,
+      /**
+       * 0基线不在轴线上时，是否强调0基线
+       * @type {Boolean}
+       */
+      hightLightZero: true,
+      /**
+       * 0基线样式
+       * @type {Object}
+       */
+      zeroLineStyle: { stroke: '#000', lineDash: [ 0, 0 ] }
     };
   }
 
@@ -67,7 +77,6 @@ class Grid extends Group {
       if (preItem && self.get('alternateColor')) {
         self._drawAlternativeBg(item, preItem, index);
       }
-
       preItem = item;
     });
   }
@@ -75,6 +84,7 @@ class Grid extends Group {
   _drawGridLines(items, lineStyle) {
     const self = this;
     const type = this.get('type');
+
     let gridLine;
     let path;
     let cfg;
@@ -105,9 +115,16 @@ class Grid extends Group {
           });
         }
 
-        cfg = Util.mix({}, lineStyle, {
-          path
-        });
+        if (self._drawZeroLine(type, idx)) {
+          cfg = Util.mix({}, self.get('zeroLineStyle'), {
+            path
+          });
+        } else {
+          cfg = Util.mix({}, lineStyle, {
+            path
+          });
+        }
+
         gridLine = self.addShape('path', {
           attrs: cfg
         });
@@ -147,6 +164,17 @@ class Grid extends Group {
         self.get('appendInfo') && gridLine.setSilent('appendInfo', self.get('appendInfo'));
       });
     }
+  }
+
+  _drawZeroLine(type, idx) {
+    const self = this;
+    const tickValues = self.get('tickValues');
+    if (type === 'line' && tickValues) {
+      if (tickValues[idx] === 0 && self.get('hightLightZero')) {
+        return true;
+      }
+    }
+    return false;
   }
 
   _drawAlternativeBg(item, preItem, index) {
@@ -229,5 +257,6 @@ class Grid extends Group {
     };
   }
 }
+
 
 module.exports = Grid;

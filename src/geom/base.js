@@ -4,16 +4,16 @@
  */
 
 const Base = require('../base');
-const Attr = require('../attr/index');
+const Attr = require('@antv/attr');
 const Util = require('../util');
 const Global = require('../global');
-const Adjust = require('./adjust/index');
+const Adjust = require('@antv/adjust');
 const Labels = require('./label/index');
-const Shape = require('./shape/index');
+const Shape = require('./shape/shape');
 const TooltipMixin = require('./mixin/tooltip');
 const ActiveMixin = require('./mixin/active');
 const SelectMixin = require('./mixin/select');
-const GROUP_ATTRS = [ 'size', 'shape', 'color' ];
+const GROUP_ATTRS = [ 'color', 'shape', 'size' ];
 const FIELD_ORIGIN = '_origin';
 
 function parseFields(field) {
@@ -28,7 +28,8 @@ function parseFields(field) {
 
 // 转换成对象的数组 [{type: 'adjust'}]
 function parseAdjusts(adjusts) {
-  if (Util.isString(adjusts)) {
+  // 如果是字符串或者对象转换成数组
+  if (Util.isString(adjusts) || Util.isPlainObject(adjusts)) {
     adjusts = [ adjusts ];
   }
   Util.each(adjusts, function(adjust, index) {
@@ -119,13 +120,18 @@ class GeomBase extends Base {
       attrOptions: {
 
       },
+      // 样式配置项
       styleOptions: null,
+      // 选中时的配置项
       selectedOptions: null,
+      // active 时的配置项
+      activedOptions: null,
       /**
        * 某些类存在默认的adjust，不能更改 adjust
        * @type {Boolean}
        */
       hasDefaultAdjust: false,
+      // 数据调整类型
       adjusts: null,
       /**
        * 使用形状的类型
@@ -162,7 +168,8 @@ class GeomBase extends Base {
        * 动画配置
        * @type {[type]}
        */
-      animateCfg: null
+      animateCfg: null,
+      visible: true
     };
   }
 
@@ -184,11 +191,11 @@ class GeomBase extends Base {
     }
   }
 
-  _createScale(field) {
+  _createScale(field, data) {
     const scales = this.get('scales');
     let scale = scales[field];
     if (!scale) {
-      scale = this.get('view').createScale(field);
+      scale = this.get('view').createScale(field, data);
       scales[field] = scale;
     }
     return scale;
@@ -351,10 +358,19 @@ class GeomBase extends Base {
   /**
    * 是否允许使用默认的图形激活交互
    * @param  {Boolean} enable 是否允许激活开关
+   * @param {Object} cfg 激活的配置项
    * @return {Geom}    返回 geom 自身
    */
-  active(enable) {
-    this.set('allowActive', enable);
+  active(enable, cfg) {
+    if (enable === false) {
+      this.set('allowActive', false);
+    } else if (Util.isObject(enable)) {
+      this.set('allowActive', true);
+      this.set('activedOptions', enable);
+    } else {
+      this.set('allowActive', true);
+      this.set('activedOptions', cfg);
+    }
     return this;
   }
 
@@ -426,10 +442,16 @@ class GeomBase extends Base {
 
   _initContainer() {
     const self = this;
-    const shapeContainer = self.get('shapeContainer');
+    let shapeContainer = self.get('shapeContainer');
     if (!shapeContainer) {
       const container = self.get('container');
-      self.set('shapeContainer', container.addGroup());
+      const view = self.get('view');
+      const viewId = view && view.get('_id');
+      shapeContainer = container.addGroup({
+        viewId,
+        visible: self.get('visible')
+      });
+      self.set('shapeContainer', shapeContainer);
     }
   }
 
@@ -631,6 +653,7 @@ class GeomBase extends Base {
           throw new Error('dodge is not support linear attribute, please use category attribute!');
         }
         adjustCfg.adjustNames = adjustNames;
+        adjustCfg.dodgeRatio = Global.widthRatio.column;
         /* if (self.isInCircle()) {
           adjustCfg.dodgeRatio = 1;
           adjustCfg.marginRatio = 0;
@@ -643,7 +666,8 @@ class GeomBase extends Base {
           const size = self.getDefaultValue('size') || 3;
           adjustCfg.size = size;
         }
-        if (!coord.isTransposed) {
+        // 不进行 transpose 时，用户又没有设置这个参数时，默认从上向下
+        if (!coord.isTransposed && Util.isNil(adjustCfg.reverseOrder)) {
           adjustCfg.reverseOrder = true;
         }
       }
@@ -749,7 +773,8 @@ class GeomBase extends Base {
       }, self.get('labelCfg')),
       coord,
       geom: self,
-      geomType: type
+      geomType: type,
+      visible: self.get('visible')
     });
     labelContainer.showLabels(points);
     self.set('labelContainer', labelContainer);
@@ -1015,16 +1040,22 @@ class GeomBase extends Base {
     return cfg;
   }
 
+  appendShapeInfo(shape, index) {
+    if (shape) {
+      shape.setSilent('index', index);
+      shape.setSilent('coord', this.get('coord'));
+
+      if (this.get('animate') && this.get('animateCfg')) {
+        shape.setSilent('animateCfg', this.get('animateCfg'));
+      }
+    }
+  }
+
   drawPoint(obj, container, shapeFactory, index) {
     const shape = obj.shape;
     const cfg = this.getDrawCfg(obj);
     const geomShape = shapeFactory.drawShape(shape, cfg, container);
-    geomShape.setSilent('index', index);
-    geomShape.setSilent('coord', this.get('coord'));
-
-    if (this.get('animate') && this.get('animateCfg')) {
-      geomShape.setSilent('animateCfg', this.get('animateCfg'));
-    }
+    this.appendShapeInfo(geomShape, index);
   }
 
   /**
@@ -1076,14 +1107,30 @@ class GeomBase extends Base {
     return rst;
   }
 
+  getFieldsForLegend() {
+    let fields = [];
+    const attrOptions = this.get('attrOptions');
+    Util.each(GROUP_ATTRS, attrName => {
+      const attrCfg = attrOptions[attrName];
+      if (attrCfg && attrCfg.field && Util.isString(attrCfg.field)) {
+        fields = fields.concat(attrCfg.field.split('*'));
+      }
+    });
+    return Util.uniq(fields);
+  }
+
   changeVisible(visible, stopDraw) {
+    const me = this;
+    me.set('visible', visible);
     const shapeContainer = this.get('shapeContainer');
-    shapeContainer.set('visible', visible);
+    if (shapeContainer) {
+      shapeContainer.set('visible', visible);
+    }
     const labelContainer = this.get('labelContainer');
     if (labelContainer) {
       labelContainer.set('visible', visible);
     }
-    if (!stopDraw) {
+    if (!stopDraw && shapeContainer) {
       const canvas = shapeContainer.get('canvas');
       canvas.draw();
     }

@@ -1,5 +1,5 @@
 const expect = require('chai').expect;
-const { Canvas } = require('@antv/g');
+const { Canvas } = require('../../../../src/renderer2d');
 const Area = require('../../../../src/geom/shape/area');
 const Coord = require('../../../../src/coord/');
 // const Global = require('../../../../src/global');
@@ -104,24 +104,24 @@ describe('area shapes', function() {
       expect(pointCfg.symbol).to.be.an.instanceof(Function);
     });
 
-    xit('getActiveCfg', function() {
-      let activeCfg = Area.getActiveCfg('area');
-      expect(activeCfg).eql({
-        fill: '#fff',
-        fillOpacity: 0.3
-      });
-
-      activeCfg = Area.getActiveCfg('line');
-      expect(activeCfg).eql({
-        lineWidth: 2
-      });
-
-      activeCfg = Area.getActiveCfg();
-      expect(activeCfg).eql({
-        fill: '#fff',
-        fillOpacity: 0.3
-      });
-    });
+    // xit('getActiveCfg', function() {
+    //   let activeCfg = Area.getActiveCfg('area');
+    //   expect(activeCfg).eql({
+    //     fill: '#fff',
+    //     fillOpacity: 0.3
+    //   });
+    //
+    //   activeCfg = Area.getActiveCfg('line');
+    //   expect(activeCfg).eql({
+    //     lineWidth: 2
+    //   });
+    //
+    //   activeCfg = Area.getActiveCfg();
+    //   expect(activeCfg).eql({
+    //     fill: '#fff',
+    //     fillOpacity: 0.3
+    //   });
+    // });
   });
 
   describe('smooth', function() {
@@ -161,12 +161,12 @@ describe('area shapes', function() {
       }, canvas);
       expect(shape.attr('stroke')).eql('red');
       expect(shape.attr('fill')).eql('red');
-      expect(shape.attr('path').length).eql(7);
+      expect(shape.attr('path').length).eql(5);
       expect(shape.attr('path')[0].length).eql(3);
       expect(shape.attr('path')[1].length).eql(7);
       expect(shape.attr('path')[2].length).eql(7);
       expect(shape.attr('path')[3].length).eql(3);
-      expect(shape.attr('path')[4].length).eql(7);
+      expect(shape.attr('path')[4].length).eql(1);
     });
     it('getMarkerCfg', function() {
       const point = {
@@ -287,6 +287,7 @@ describe('area shapes', function() {
         color: 'red',
         isInCircle: true
       }, canvas);
+      expect(shape.attr('path').length).equal(7);
       expect(shape.attr('stroke')).eql('red');
       expect(shape.attr('path')[0].length).eql(3);
       expect(shape.attr('path')[1].length).eql(3);

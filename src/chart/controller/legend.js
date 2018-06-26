@@ -1,11 +1,10 @@
 const Util = require('../../util');
 const Global = require('../../global');
-const { Legend } = require('../../component/index');
-const Shape = require('../../geom/shape/index');
+const Legend = require('../../component/legend');
+const Shape = require('../../geom/shape/shape');
 
 const FIELD_ORIGIN = '_origin';
-const MARGIN = 24;
-const MARGIN_LEGEND = 24;
+const MARKER_SIZE = 4.5;
 const requireAnimationFrameFn = window.requestAnimationFrame || window.mozRequestAnimationFrame ||
   window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
 
@@ -51,12 +50,35 @@ class LegendController {
 
   clear() {
     const legends = this.legends;
+    this.backRange = null;
     Util.each(legends, legendItems => {
       Util.each(legendItems, legend => {
         legend.remove();
       });
     });
     this.legends = {};
+  }
+
+  // 获取坐标轴等背景元素占的范围，防止遮挡坐标轴
+  getBackRange() {
+    let backRange = this.backRange;
+    if (!backRange) {
+      backRange = this.chart.get('backPlot').getBBox();
+      const plotRange = this.plotRange;
+      if (backRange.minX === 0 || (
+        backRange.maxX - backRange.minX < plotRange.br.x - plotRange.tl.x) || (
+        backRange.maxY - backRange.minY) < plotRange.br.y - plotRange.tl.y
+      ) { // 如果背景不占宽高，或者背景小于则直接使用 plotRange
+        backRange = {
+          minX: plotRange.tl.x,
+          minY: plotRange.tl.y,
+          maxX: plotRange.br.x,
+          maxY: plotRange.br.y
+        };
+      }
+      this.backRange = backRange;
+    }
+    return backRange;
   }
 
   _isFieldInView(field, value, view) {
@@ -69,6 +91,7 @@ class LegendController {
 
     return flag;
   }
+
 
   _bindClickEvent(legend, scale, filterVals) {
     const self = this;
@@ -117,10 +140,40 @@ class LegendController {
           });
         }
         chart.set('keepLegend', true); // 图例不重新渲染
+        chart.set('keepPadding', true); // 边框不重新计算
         chart.repaint();
+        chart.set('keepPadding', false);
+        chart.set('keepLegend', false);
       }
     });
   }
+
+
+  _bindClickEventForMix(legend) {
+    const self = this;
+    const chart = self.chart;
+    const geoms = chart.getAllGeoms();
+    legend.on('itemclick', ev => {
+      const value = ev.item.value;
+      const checked = ev.checked;
+      if (checked) {
+        Util.each(geoms, geom => {
+          const field = geom.getYScale().field;
+          if (field === value) {
+            geom.show();
+          }
+        });
+      } else {
+        Util.each(geoms, geom => {
+          const field = geom.getYScale().field;
+          if (field === value) {
+            geom.hide();
+          }
+        });
+      }
+    });
+  }
+
 
   _filterLabels(shape, geom, visible) {
     if (shape.get('gLabel')) {
@@ -258,49 +311,108 @@ class LegendController {
     const canvas = container.get('canvas');
     const width = canvas.get('width');
     let height = canvas.get('height');
+    const totalRegion = self.totalRegion;
     const plotRange = self.plotRange;
+    const backRange = self.getBackRange(); // 背景占得范围
     const offsetX = legend.get('offsetX') || 0;
     const offsetY = legend.get('offsetY') || 0;
-    const offset = Util.isNil(legend.get('offset')) ? MARGIN : legend.get('offset');
+    // const offset = Util.isNil(legend.get('offset')) ? MARGIN : legend.get('offset');
     const legendHeight = legend.getHeight();
+    const legendWidth = legend.getWidth();
+    const borderMargin = Global.legend.margin;
+    const innerMargin = Global.legend.legendMargin;
+    const legendNum = self.legends[position].length;
+    const posArray = position.split('-');
 
     let x = 0;
     let y = 0;
+    const tempoRegion = (legendNum > 1) ? totalRegion : region;
 
-    if (position === 'left' || position === 'right') { // 垂直
+    if (posArray[0] === 'left' || posArray[0] === 'right') {
       height = plotRange.br.y;
-      x = position === 'left' ? offset : plotRange.br.x + offset;
-      y = height - legendHeight;
-
+      x = self._getXAlign(posArray[0], width, region, backRange, legendWidth, borderMargin);
       if (pre) {
-        y = pre.get('y') - legendHeight - MARGIN_LEGEND;
+        y = pre.get('y') + pre.getHeight() + innerMargin;
+      } else {
+        y = self._getYAlignVertical(posArray[1], height, tempoRegion, backRange, 0, borderMargin, canvas.get('height'));
       }
-    } else {
-      x = (width - region.totalWidth) / 2;
-      y = (position === 'top') ? offset : (plotRange.bl.y + offset);
-
+    } else if (posArray[0] === 'top' || posArray[0] === 'bottom') {
+      y = self._getYAlignHorizontal(posArray[0], height, region, backRange, legendHeight, borderMargin);
       if (pre) {
         const preWidth = pre.getWidth();
-        x = pre.get('x') + preWidth + MARGIN_LEGEND;
+        x = pre.get('x') + preWidth + innerMargin;
+      } else {
+        x = self._getXAlign(posArray[1], width, tempoRegion, backRange, 0, borderMargin);
+        if (posArray[1] === 'right') x = plotRange.br.x - tempoRegion.totalWidth;
       }
     }
 
     legend.move(x + offsetX, y + offsetY);
   }
 
-  _getRegion(legends) {
+  _getXAlign(pos, width, region, backRange, legendWidth, borderMargin) {
+    let x = pos === 'left' ? backRange.minX - legendWidth - borderMargin[3] : backRange.maxX + borderMargin[1];
+    if (pos === 'center') {
+      x = (width - region.totalWidth) / 2;
+    }
+    return x;
+  }
+
+  _getYAlignHorizontal(pos, height, region, backRange, legendHeight, borderMargin) {
+    const y = (pos === 'top') ? backRange.minY - legendHeight - borderMargin[0] : backRange.maxY + borderMargin[2];
+    return y;
+  }
+
+  _getYAlignVertical(pos, height, region, backRange, legendHeight, borderMargin, canvasHeight) {
+    let y = (pos === 'top') ? backRange.minY - legendHeight - borderMargin[0] : height - region.totalHeight;
+    if (pos === 'center') {
+      y = (canvasHeight - region.totalHeight) / 2;
+    }
+    return y;
+  }
+
+  _getSubRegion(legends) {
     let maxWidth = 0;
+    let maxHeight = 0;
     let totalWidth = 0;
+    let totalHeight = 0;
     Util.each(legends, function(legend) {
       const width = legend.getWidth();
+      const height = legend.getHeight();
       if (maxWidth < width) {
         maxWidth = width;
       }
       totalWidth += width;
+      if (maxHeight < height) {
+        maxHeight = height;
+      }
+      totalHeight += height;
     });
     return {
       maxWidth,
-      totalWidth
+      totalWidth,
+      maxHeight,
+      totalHeight
+    };
+  }
+
+  _getRegion() {
+    const self = this;
+    const legends = self.legends;
+    const innerMargin = Global.legend.legendMargin;
+    const subs = [];
+    let totalWidth = 0;
+    let totalHeight = 0;
+    Util.each(legends, legendItems => {
+      const subRegion = self._getSubRegion(legendItems);
+      subs.push(subRegion);
+      totalWidth += (subRegion.totalWidth + innerMargin);
+      totalHeight += (subRegion.totalHeight + innerMargin);
+    });
+    return {
+      totalWidth,
+      totalHeight,
+      subs
     };
   }
 
@@ -330,8 +442,8 @@ class LegendController {
     const chart = self.chart;
     const canvas = chart.get('canvas');
     const plotRange = self.plotRange;
-    const maxLength = (position === 'right' || position === 'left') ? plotRange.bl.y - plotRange.tr.y : canvas.get('width');
-
+    const posArray = position.split('-');
+    const maxLength = (posArray[0] === 'right' || posArray[0] === 'left') ? plotRange.bl.y - plotRange.tr.y : canvas.get('width');
     Util.each(ticks, tick => {
       const text = tick.text;
       const name = text;
@@ -376,16 +488,27 @@ class LegendController {
       });
     });
 
-    const legendCfg = Util.deepMix({
-      title: {
-        text: scale.alias || scale.field
-      }
-    }, Global.legend[position], legendOptions[field] || legendOptions, {
+    const legendCfg = Util.deepMix({}, Global.legend[posArray[0]], legendOptions[field] || legendOptions, {
+      viewId: chart.get('_id'),
       maxLength,
       items
     });
+    if (legendCfg.title) {
+      Util.deepMix(legendCfg, {
+        title: {
+          text: scale.alias || scale.field
+        }
+      });
+    }
 
-    const legend = container.addGroup(Legend.Category, legendCfg);
+    let legend;
+    if (self._isTailLegend(legendOptions, geom)) {
+      legendCfg.chart = self.chart;
+      legendCfg.geom = geom;
+      legend = container.addGroup(Legend.Tail, legendCfg);
+    } else {
+      legend = container.addGroup(Legend.Category, legendCfg);
+    }
     self._bindClickEvent(legend, scale, filterVals);
     legends[position].push(legend);
     return legend;
@@ -409,7 +532,7 @@ class LegendController {
       const attrValue = attr.mapping(invertValue).join('');
 
       items.push({
-        value: tick.text,
+        value: tick.tickValue, // tick.text
         attrValue,
         scaleValue
       });
@@ -423,14 +546,14 @@ class LegendController {
 
     if (!minValue) {
       items.push({
-        value: scale.getText(scale.invert(0)),
+        value: scale.min,
         attrValue: attr.mapping(0).join(''),
         scaleValue: 0
       });
     }
     if (!maxValue) {
       items.push({
-        value: scale.getText(scale.invert(1)),
+        value: scale.max,
         attrValue: attr.mapping(1).join(''),
         scaleValue: 1
       });
@@ -438,19 +561,24 @@ class LegendController {
 
     const options = self.options;
 
-    let defaultCfg = Global.legend[position];
+    const posArray = position.split('-');
+    let defaultCfg = Global.legend[posArray[0]];
     if ((options && options.slidable === false) || (options[field] && options[field].slidable === false)) {
       defaultCfg = Util.mix({}, defaultCfg, Global.legend.gradient);
     }
 
-    const legendCfg = Util.deepMix({
-      title: {
-        text: scale.alias || scale.field
-      }
-    }, defaultCfg, options[field] || options, {
+    const legendCfg = Util.deepMix({}, defaultCfg, options[field] || options, {
       items,
-      attr
+      attr,
+      numberFormatter: scale.formatter
     });
+    if (legendCfg.title) {
+      Util.deepMix(legendCfg, {
+        title: {
+          text: scale.alias || scale.field
+        }
+      });
+    }
 
     if (attr.type === 'color') {
       legend = container.addGroup(Legend.Color, legendCfg);
@@ -460,6 +588,33 @@ class LegendController {
     self._bindFilterEvent(legend, scale);
     legends[position].push(legend);
     return legend;
+  }
+  _isTailLegend(opt, geom) {
+    if (opt.hasOwnProperty('attachLast') && opt.attachLast) {
+      const geomType = geom.get('type');
+      if (geomType === 'line' || geomType === 'lineStack' || geomType === 'area' || geomType === 'areaStack') return true;
+    }
+    return false;
+  }
+
+  _adjustPosition(position, isTailLegend) {
+    let pos;
+    if (isTailLegend) {
+      pos = 'right-top';
+    } else if (Util.isArray(position)) {
+      pos = String(position[0]) + '-' + String(position[1]);
+    } else {
+      const posArr = position.split('-');
+      if (posArr.length === 1) { // 只用了left/right/bottom/top一个位置定位
+        if (posArr[0] === 'left') pos = 'left-bottom';
+        if (posArr[0] === 'right') pos = 'right-bottom';
+        if (posArr[0] === 'top') pos = 'top-center';
+        if (posArr[0] === 'bottom') pos = 'bottom-center';
+      } else {
+        pos = position;
+      }
+    }
+    return pos;
   }
 
   addLegend(scale, attr, geom, filterVals) {
@@ -476,6 +631,7 @@ class LegendController {
       self.addCustomLegend(field);
     } else {
       let position = legendOptions.position || Global.defaultLegendPosition;
+      position = self._adjustPosition(position, self._isTailLegend(legendOptions, geom));
       if (fieldOption && fieldOption.position) { // 如果对某个图例单独设置 position，则对 position 重新赋值
         position = fieldOption.position;
       }
@@ -493,6 +649,7 @@ class LegendController {
   /**
    * 自定义图例
    * @param {string} field 自定义图例的数据字段名，可以为空
+   * @return {object} legend 自定义图例实例
    */
   addCustomLegend(field) {
     const self = this;
@@ -504,7 +661,8 @@ class LegendController {
       legendOptions = legendOptions[field];
     }
 
-    const position = legendOptions.position || Global.defaultLegendPosition;
+    let position = legendOptions.position || Global.defaultLegendPosition;
+    position = self._adjustPosition(position);
     const legends = self.legends;
     legends[position] = legends[position] || [];
     const items = legendOptions.items;
@@ -519,8 +677,10 @@ class LegendController {
         item.marker = {
           symbol: item.marker ? item.marker : 'circle',
           fill: item.fill,
-          radius: 4.5
+          radius: MARKER_SIZE
         };
+      } else {
+        item.marker.radius = item.marker.radius || MARKER_SIZE;
       }
       item.checked = Util.isNil(item.checked) ? true : item.checked;
       item.geom = geom;
@@ -528,9 +688,10 @@ class LegendController {
 
     const canvas = chart.get('canvas');
     const plotRange = self.plotRange;
-    const maxLength = (position === 'right' || position === 'left') ? plotRange.bl.y - plotRange.tr.y : canvas.get('width');
+    const posArray = position.split('-');
+    const maxLength = (posArray[0] === 'right' || posArray[0] === 'left') ? plotRange.bl.y - plotRange.tr.y : canvas.get('width');
 
-    const legendCfg = Util.deepMix({}, Global.legend[position], legendOptions, {
+    const legendCfg = Util.deepMix({}, Global.legend[posArray[0]], legendOptions, {
       maxLength,
       items
     });
@@ -545,19 +706,47 @@ class LegendController {
     });
 
     self._bindHoverEvent(legend);
+    return legend;
+  }
+
+  addMixedLegend(scales, geoms) {
+    const self = this;
+    const items = [];
+    Util.each(scales, scale => {
+      const value = scale.field;
+      Util.each(geoms, geom => {
+        if (geom.getYScale() === scale && scale.values && scale.values.length > 0) {
+          const shapeType = geom.get('shapeType') || 'point';
+          const shape = geom.getDefaultValue('shape') || 'circle';
+          const shapeObject = Shape.getShapeFactory(shapeType);
+          const cfg = { color: geom.getDefaultValue('color') };
+          const marker = shapeObject.getMarkerCfg(shape, cfg);
+          const item = { value, marker };
+          items.push(item);
+        }
+      });// end of geom loop
+    });// end of scale loop
+    const options = { custom: true, items };
+    self.options = Util.deepMix({}, options, self.options);
+    const legend = self.addCustomLegend();
+    self._bindClickEventForMix(legend);
   }
 
   alignLegends() {
     const self = this;
     const legends = self.legends;
+    const totalRegion = self._getRegion(legends);
+    self.totalRegion = totalRegion;
+    let i = 0;
     Util.each(legends, (legendItems, position) => {
-      const region = self._getRegion(legendItems);
+      const region = /* self._getRegion(legendItems)*/totalRegion.subs[i];
       Util.each(legendItems, (legend, index) => {
         const pre = legendItems[index - 1];
         if (!(legend.get('useHtml') && !legend.get('autoPosition'))) {
           self._alignLegend(legend, pre, region, position);
         }
       });
+      i++;
     });
 
     return this;

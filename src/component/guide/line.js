@@ -4,7 +4,7 @@
  */
 const Util = require('../../util');
 const Base = require('./base');
-const { vec2 } = require('@antv/g').MatrixUtil;
+const { vec2 } = Util.MatrixUtil;
 
 class Line extends Base {
   getDefaultCfg() {
@@ -15,7 +15,6 @@ class Line extends Base {
        * @type {String}
        */
       type: 'line',
-      zIndex: 15,
       /**
        * 辅助线的起点位置
        * @type {Object | Function | Array}
@@ -116,10 +115,10 @@ class Line extends Base {
 
     cfg.text = textCfg.content;
     cfg = Util.mix({}, cfg, textStyle);
-    if (textCfg.autoRotate && !textStyle.rotate) {
+    if (textCfg.autoRotate && Util.isNil(textStyle.rotate)) { // 自动旋转且用户没有设置旋转角度
       const angle = vec2.angleTo([ end.x - start.x, end.y - start.y ], [ 1, 0 ], 1);
       cfg.rotate = angle;
-    } else if (textStyle.rotate) {
+    } else if (!Util.isNil(textStyle.rotate)) { // 用户设置了旋转角度
       cfg.rotate = (textStyle.rotate * Math.PI) / 180;
     }
 

@@ -1,3 +1,220 @@
+#### 3.1.2 (2018-06-08)
+
+##### New Features
+
+* feat(legend): tail-legend
+* feat(legend): extend legend positions to twelve
+
+##### Bug Fixes
+
+* fix(guide): exception when draw with reflected coord
+* fix(heatmap): keep heatmap image in plot range
+* fix(dev): sync pkg and global version for g2
+
+#### 3.1.1 (2018-06-02)
+
+##### New Features
+
+* feat(axis): linear and category axis style
+
+##### Bug Fixes
+
+* fix(tooltip): disable tooltip crosshairs event capturing. Closes #656
+
+#### 3.1.0 (2018-05-25)
+
+##### New Features
+
+* chore(dev): update dependencies, etc.
+* feat(interaction): add basic interaction grammar (beta)
+* feat(interaction): add brush interaction
+* feat(interaction): add zoom interaction
+* feat(interaction): add drag interaction
+* feat(axis): highlight zero baseline
+
+##### Bug Fixes
+
+* fix(tooltip): ignore properties like showMarker of tooltip items
+
+#### 3.0.12 (2018-05-18)
+
+##### Bug Fixes
+
+* fix(geom): undefined container in changeVisible. Closes #629
+* fix(tooltip): bug in removing duplicated items, Closes #637
+
+#### 3.0.11 (2018-05-11)
+
+##### Bug Fixes
+
+* fix(tooltip): change tooltip when any of the item properties changed, Closes #616
+* fix(tooltip): fix bug in removing duplicated items
+
+#### 3.0.10 (2018-05-04)
+
+##### New Features
+
+* feat(guide):add regionFilter guide
+
+##### Bug Fixes
+
+* fix(chart): fix downloadImage method in chart to fit IE 10+ and Firefox, Close #617
+* fix(scale): fixing timeCat scale when data is empty, Closes #615
+
+#### 3.0.9 (2018-04-28)
+
+##### Bug Fixes
+
+* fix(heatmap): not drawn properly after resize (caused by ctx cache), Closes #604
+* fix(scale): time scale init error (caused by invalid min and max), Closes #607
+* fix(polygon): open path is not drawn properly in polar coordinate system
+
+#### 3.0.8 (2018-04-22)
+
+##### Bug Fixes
+
+* fix(area): urgent fix of basic area plot, Closes #602
+
+#### 3.0.7 (2018-04-20)
+
+##### New Features
+
+* feat(geom): support multiple polygon
+* refactor(dev): require on demand (with bundler app) #579 #364
+* chore(dev): reduce module size by removing useless deps of lodash
+* chore(test): clear up test cases
+
+##### Bug Fixes
+
+* fix(geom): fix bug in rendering GeoJSON multi-polygon #551
+* fix(area): fix bug of area innerRadius in polar coord #573
+* fix(pyramid): fix bug of pyramid when processing data with 0 #569
+
+#### 3.0.6 (2018-04-09)
+
+##### New Features
+
+* feat(interval): add top-line shape
+
+##### Bug Fixes
+
+* fix(legend): position and offset settings not working
+
+#### 3.0.5 (2018-04-04)
+
+##### New Features
+
+* chore(demo): map with heatmap
+* chore(dev): remove console logs
+* feat(chart): add Venn Geom
+* feat(chart): liquid-fill plots
+* feat(chart): liquid-fill shapes (guage and path)
+* feat(line): make lineDash configurable, Closes #486
+
+##### Bug Fixes
+
+* fix(typescript): Some func signature is wrong and cause typescript to * throw error to block compile
+* fix(animate): fixed axis animate, Closes #378
+* fix(chart): venn label position
+* fix(dev): resolve potential security vulnerability in * dependencies
+* fix(event): Closes #439
+* fix(event): emit plotleave event properly, Closes #502
+* fix(funnel): fixed bug of funnel animation, Closes #213
+* fix(geom): add chart.pointStack(), Closes #437
+* fix(geom): support connect null values, Closes #415
+* fix(heatmap): heatmap cannot be drew when reflecting coord
+* fix(label): fixed bug of pie label when coord rotate
+* fix(label): when label is empty, the label line does not show
+* fix(legend): legend value formatter, #406
+* fix(legend): when chart auto padding, legend overlap axis
+* fix(scale): Closes #520, #528, #408
+* fix(scale): when Infinity throw error
+* fix(selected): Closes #515
+* fix(tooltip): Closes #454
+* fix(tooltip): change tooltip title in tooltip:change, Closes #280
+* fix(typing): add missing implicit type definition
+* fix(venn): label color when shape is hollow
+* fix(venn): label textBaseline should be middle by default
+* fix: Closes #557
+* fix: html legend in ie9
+
+#### 3.0.4 (2018-01-26)
+
+##### New Features
+
+* chore(dev): keep G2.Global.Version same as pkg.version
+* chore(dev): provide ES5 version for npm pkg
+* feat(highlight): active shape support highlight
+* feat(scale): update cat ticks calculate
+* feat(shape): add image shape for point
+* feat(shape): add path shape for point
+* feat(stack): support stack reverse order
+* perf(shape): caching path calculating for point path shape
+
+##### Bug Fixes
+
+* fix(attr): do not throw when color mapping value is NaN
+* fix(axis): title config not working
+* fix(chart): clear timer after chart instance destroyed
+* fix(chart): download image supports Firefox, etc.
+* fix(event): event triggering in point geom
+* fix(event): modifying shapes in events not working
+* fix(facet): duplicated axes rendering
+* fix(legend): error when `cat` scale with empty data
+* fix(legend): event is not triggered due to lacking of viewId
+* fix(legend): extra legend generated in heatmap rendering
+* fix(legend): html legend checked status error
+* fix(legend): title config not working
+* fix(scale): scale sync not working
+* fix(select): getSelectedCfg is not a function
+* fix(shape): fixed register shape error
+* fix(tooltip): tooltip change event emitted only when content changes
+
+#### 3.0.3 (2017-12-25)
+
+##### New Features
+
+* chore(dev): remove useless dependency (cheerio)
+* chore(dev): upgrade torchjs (testing framework)
+* chore(doc): replacing demos screenshot in README.md
+* chore(legend): better continous legend's mouse cursor.
+* feat(chart): support auto padding
+
+##### Bug Fixes
+
+* fix(axis): axis'title setting. Close #299
+* fix(axis): fill gaps near edges when gridAlign is `center`
+* fix(axis): left axis grid cover the axis line
+* fix(chart): Endless loop after chart.forceFit()
+* fix(chart): crush after resize. Closes: #241
+* fix(demos): @lite-js/torch => torchjs
+* fix(demos): map drilling down problem
+* fix(scale): throw an error to avoid stack overflow, etc.
+* fix(theme): allow set partial theme. Closed #205.
+* fix(theme): set theme for legend.html but not work
+* fix(tooltip): fixed bug of #318, size(filed) caused error of tooltip
+
+#### 3.0.2 (2017-12-14)
+
+##### New Features
+
+* chore(dev): add `index.d.ts`
+* chore(dev): working with Windows
+* chore(dev): better scripts for dev
+* chore(demos): better demos solution & add more demos
+
+##### Bug Fixes
+
+* fix(tooltip): set title for tooltip, change does not take effect(#280)
+* fix(shape): fixed bug of #252
+* fix(view): fix bug of filter and view event
+* fix(eslint): close the linebreak-style rule to support windows os
+* fix(dependencies): be more careful on dependencies management (like uglify-js)
+* fix(scale): very little number ticks
+* fix(component): set appropriate value of zIndex
+* chore(demos): fixing demos style, etc.
+* chore(demos): remove screenshots
+
 #### 3.0.1 (2017-12-01)
 
 ##### New Features
@@ -9,7 +226,7 @@
 ##### Bug Fixes
 
 * fix tooltip bug. ([2933b777](https://github.com/antvis/g2/commit/2933b7777c4365c5fd8f52bb37fd4ee35250c627))
-* Unified the easing funciton of all geoms. ([78849666](https://github.com/antvis/g2/commit/78849666be78b0b3754c1ed43bfff05e0fff1361))
+* Unified the easing function of all geoms. ([78849666](https://github.com/antvis/g2/commit/78849666be78b0b3754c1ed43bfff05e0fff1361))
 
 #### 3.0.0 (2017-11-22)
 

@@ -1,10 +1,10 @@
 const expect = require('chai').expect;
-const { Canvas } = require('@antv/g');
 const DataSet = require('@antv/data-set');
+const { Canvas } = require('../../../../src/renderer2d');
 const PieLabels = require('../../../../src/geom/label/pie-labels');
 const Coord = require('../../../../src/coord/');
-const G2 = require('../../../../index');
-const Scale = require('../../../../src/scale/index');
+const G2 = require('../../../../src/index');
+const Scale = require('@antv/scale');
 
 describe('pie labels', function() {
   const ds = new DataSet();
@@ -640,9 +640,9 @@ describe('pie labels', function() {
       canvas.draw();
     });
 
-    xit('remove', function() {
-      // $('#gl3').remove();
-    });
+    // xit('remove', function() {
+    //   // $('#gl3').remove();
+    // });
   });
 
   describe('Just one label.', function() {
@@ -679,7 +679,6 @@ describe('pie labels', function() {
       const labelGroup = geom.get('labelContainer');
       const labelsGroup = labelGroup.get('labelsGroup');
       const cText = labelsGroup.get('children')[0];
-      console.log(cText.get('attrs').x, cText.get('attrs').y);
       expect(cText.get('attrs').x).to.equal(270.8166632639171);
       expect(cText.get('attrs').y).to.equal(228);
     });

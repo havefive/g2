@@ -3,8 +3,8 @@
  * @author sima.zhang
  */
 const Util = require('../../util');
-const { Axis } = require('../../component/index');
-const { vec2 } = require('@antv/g').MatrixUtil;
+const Axis = require('../../component/axis');
+const { vec2 } = Util.MatrixUtil;
 const Global = require('../../global');
 
 function formatTicks(ticks) {
@@ -27,6 +27,35 @@ function formatTicks(ticks) {
   return tmp;
 }
 
+function fillAxisTicks(ticks, isLinear, gridCentering) {
+  let result = [];
+  if (ticks.length < 1) return result;
+
+  if (ticks.length >= 2 && isLinear && gridCentering) {
+    result.push({
+      text: '',
+      tickValue: '',
+      value: 0
+    });
+  }
+  if (ticks[0].value !== 0) {
+    result.push({
+      text: '',
+      tickValue: '',
+      value: 0
+    });
+  }
+  result = result.concat(ticks);
+  if (result[result.length - 1].value !== 1) {
+    result.push({
+      text: '',
+      tickValue: '',
+      value: 1
+    });
+  }
+  return result;
+}
+
 class AxisController {
   constructor(cfg) {
     this.visible = true;
@@ -46,12 +75,17 @@ class AxisController {
     return false;
   }
 
-  _getMiddleValue(curValue, ticks, index) {
-    const tickCount = ticks.length;
-    if (index === tickCount - 1) {
-      return null;
+  _getMiddleValue(curValue, ticks, index, isLinear) {
+    if (curValue === 0 && !isLinear) {
+      return 0;
+    }
+    if (curValue === 1) {
+      return 1;
     }
     const nextValue = ticks[index + 1].value;
+    if (!isLinear && nextValue === 1) {
+      return 1;
+    }
     return (curValue + nextValue) / 2;
   }
 
@@ -242,19 +276,16 @@ class AxisController {
     let cfg = {};
     const options = self.options;
     const field = scale.field;
-    const isShowTitle = !!(Global.axis[position] && Global.axis[position].title); // 用户全局禁用 title
-    let titleCfg;
 
-    // bugfix: title was set by chart.axis('field', { title: {} })
-    if (isShowTitle || (options[field] && options[field].title)) {
-      titleCfg = {
+    cfg = Util.deepMix({}, Global.axis[position], cfg, options[field]);
+    if (cfg.title) {
+      Util.deepMix(cfg, {
         title: {
           text: scale.alias || field
         }
-      };
+      });
     }
-    cfg = Util.deepMix({}, Global.axis[position], cfg, options[field]);
-    Util.mix(cfg, titleCfg);
+
     cfg.ticks = scale.getTicks();
 
     if (coord.isPolar && !scale.isCategory) {
@@ -267,6 +298,13 @@ class AxisController {
     if (cfg.label && Util.isNil(cfg.label.autoRotate)) {
       cfg.label.autoRotate = true; // 允许自动旋转，避免重叠
     }
+
+    if (options.hasOwnProperty('xField') && options.xField.hasOwnProperty('grid')) {
+      if (cfg.position === 'left') {
+        Util.deepMix(cfg, options.xField);
+      }
+    }
+
     return cfg;
   }
 
@@ -277,15 +315,17 @@ class AxisController {
     const cfg = self._getAxisDefaultCfg(coord, scale, dimType, position);
     if (!Util.isEmpty(cfg.grid) && verticalScale) { // 生成 gridPoints
       const gridPoints = [];
+      const tickValues = [];
       const verticalTicks = formatTicks(verticalScale.getTicks());
       // 没有垂直的坐标点时不会只栅格
       if (verticalTicks.length) {
-        const ticks = cfg.ticks;
+        const ticks = fillAxisTicks(cfg.ticks, scale.isLinear, cfg.grid.align === 'center');
         Util.each(ticks, (tick, idx) => {
+          tickValues.push(tick.tickValue);
           const subPoints = [];
           let value = tick.value;
           if (cfg.grid.align === 'center') {
-            value = self._getMiddleValue(value, ticks, idx);
+            value = self._getMiddleValue(value, ticks, idx, scale.isLinear);
           }
           if (!Util.isNil(value)) {
             const rangeX = coord.x;
@@ -313,19 +353,11 @@ class AxisController {
             });
           }
         });
-
-        // TODO: 临时解决，需要添加一条以满足最后一格能颜色交替
-        if ((ticks.length % 2 === 0) && (cfg.grid.align === 'center') && cfg.grid.alternateColor) {
-          gridPoints.push({
-            points: [
-              { x: coord.end.x, y: coord.start.y },
-              { x: coord.end.x, y: coord.end.y }
-            ]
-          });
-        }
       }
       cfg.grid.items = gridPoints;
+      cfg.grid.tickValues = tickValues;
     }
+    cfg.type = scale.type;
     return cfg;
   }
 

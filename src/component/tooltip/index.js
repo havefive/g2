@@ -5,7 +5,7 @@
 const Util = require('../../util');
 const Base = require('../../base');
 const Global = require('../../global');
-const { DomUtil } = require('@antv/g');
+const DomUtil = Util.DomUtil;
 
 const CONTAINER_CLASS = 'g2-tooltip';
 const TITLE_CLASS = 'g2-tooltip-title';
@@ -317,6 +317,7 @@ class Tooltip extends Base {
   _addCrossLineShape(attrs, type) {
     const crosshairsGroup = this.get('crosshairsGroup');
     const shape = crosshairsGroup.addShape('line', {
+      capture: false,
       attrs
     });
     shape.hide();
@@ -366,14 +367,22 @@ class Tooltip extends Base {
     return shape;
   }
 
-  _isContentChange(title, items) {
+  isContentChange(title, items) {
     const titleContent = this.get('titleContent');
     const lastItems = this.get('items');
     let isChanged = !(title === titleContent && lastItems.length === items.length);
     if (!isChanged) {
       Util.each(items, (item, index) => {
         const preItem = lastItems[index];
-        isChanged = (item.value !== preItem.value) || (item.color !== preItem.color) || (item.name !== preItem.name) || (item.title !== preItem.title);
+        for (const key in item) {
+          if (item.hasOwnProperty(key)) {
+            if (!Util.isObject(item[key]) && item[key] !== preItem[key]) {
+              isChanged = true;
+              break;
+            }
+          }
+        }
+        // isChanged = (item.value !== preItem.value) || (item.color !== preItem.color) || (item.name !== preItem.name) || (item.title !== preItem.title);
         if (isChanged) {
           return false;
         }
@@ -384,14 +393,15 @@ class Tooltip extends Base {
   }
 
   setContent(title, items) {
-    const isChange = this._isContentChange(title, items);
-    if (isChange) {
-      const timeStamp = +new Date();
-      this.set('items', items);
-      this.set('titleContent', title);
-      this.set('timeStamp', timeStamp);
-      this._renderTooltip();
-    }
+    // const isChange = this.isContentChange(title, items);
+    // if (isChange) {
+    // 在外面进行判断是否内容发生改变
+    const timeStamp = +new Date();
+    this.set('items', items);
+    this.set('titleContent', title);
+    this.set('timeStamp', timeStamp);
+    this._renderTooltip();
+    // }
     return this;
   }
 
@@ -401,7 +411,8 @@ class Tooltip extends Base {
     const frontPlot = self.get('frontPlot');
     if (!markerGroup) {
       markerGroup = frontPlot.addGroup({
-        zIndex: 1
+        zIndex: 1,
+        capture: false // 不进行拾取
       });
       self.set('markerGroup', markerGroup);
     } else {
@@ -412,7 +423,10 @@ class Tooltip extends Base {
         color: item.color,
         attrs: Util.mix({}, markerCfg, {
           x: item.x,
-          y: item.y
+          y: item.y,
+          fill: item.color,
+          symbol: 'circle',
+          shadowColor: item.color
         })
       });
     });
@@ -461,6 +475,7 @@ class Tooltip extends Base {
         endx = markerItems[0].x;
         endy = markerItems[0].y;
       }
+
       if (crossLineShapeY) { // 第一次进入时，画布需要单独绘制，所以需要先设定corss的位置
         crossLineShapeY.move(endx, 0);
       }
@@ -468,7 +483,7 @@ class Tooltip extends Base {
         crossLineShapeX.move(0, endy);
       }
 
-      if (crosshairsRectShape) {
+      if (crosshairsRectShape) { // 绘制矩形辅助框，只在直角坐标系下生效
         const isTransposed = this.get('isTransposed');
         const items = this.get('items');
         const firstItem = items[0];
@@ -479,19 +494,23 @@ class Tooltip extends Base {
         if (items.length > 1 && firstItem[dim] > lastItem[dim]) {
           startDim = lastItem[dim];
         }
-
         if (this.get('crosshairs').width) { // 用户定义了 width
           crosshairsRectShape.attr(dim, startDim - this.get('crosshairs').width / 2);
           crosshairsRectShape.attr(attr, this.get('crosshairs').width);
         } else {
-          offset = (firstItem.size / 2 + firstItem.size / 4) || 10;
-          crosshairsRectShape.attr(dim, startDim - offset);
-
-          if (items.length === 1) {
-            crosshairsRectShape.attr(attr, firstItem.size + firstItem.size / 2);
+          if (Util.isArray(firstItem.point[dim]) && !firstItem.size) { // 直方图
+            const width = firstItem.point[dim][1] - firstItem.point[dim][0];
+            crosshairsRectShape.attr(dim, firstItem.point[dim][0]);
+            crosshairsRectShape.attr(attr, width);
           } else {
-            const lastItem = items[items.length - 1];
-            crosshairsRectShape.attr(attr, Math.abs(lastItem[dim] - firstItem[dim]) + 2 * offset);
+            offset = (3 * firstItem.size) / 4;
+            crosshairsRectShape.attr(dim, startDim - offset);
+
+            if (items.length === 1) {
+              crosshairsRectShape.attr(attr, (3 * firstItem.size) / 2);
+            } else {
+              crosshairsRectShape.attr(attr, Math.abs(lastItem[dim] - firstItem[dim]) + 2 * offset);
+            }
           }
         }
       }
